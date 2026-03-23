@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!-- <meta name="viewport" content="width=device-width,initial-scale=1.0"> -->
+    <meta name="viewport"
+        content="width=device-width, inITial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>Document</title>
+    <style>
+      video {
+        width: 320px;
+        background-color: gray;
+      }
+      #openCameraBtn {
+        padding: 4px 10px;
+      }
+    </style>
+    <script src="./CWRealTimeActionLive.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/eruda/3.4.3/eruda.js"></script>
+  </head>
+
+  <body>
+    <div>
+      <video
+        id="video"
+        width="320"
+        muted
+        controls
+        autoplay
+        playsinline
+        x5-playsinline="true"
+        webkit-playsinline="true"
+        x5-video-player-type="h5"
+      ></video>
+
+      <button id="openCameraBtn" onclick="openFrontCamera()">
+        开启前置摄像头
+      </button>
+      <button id="stopCameraBtn" onclick="stopCamera()">停止</button>
+      <p id="cameraStatus"></p>
+      <!-- <video src="https://www.w3schools.com/html/mov_bbb.mp4"></video> -->
+    </div>
+    <script>
+      setTimeout(() => {
+        // navigator.mediaDevices
+        //   .enumerateDevices()
+        //   .then(function (devices) {
+        //     devices.forEach(function (device) {
+        //       if (device.kind === "videoinput") {
+        //         console.log(device); // 打印摄像头的名称，用户可以选择
+        //       }
+        //     });
+        //   })
+        //   .catch(function (err) {
+        //     console.log(err.name + ": " + err.message);
+        //   });
+        // openFrontCamera();
+        // console.log("自动开启前置摄像头");
+        console.log("自动开启前置摄像头");
+
+        new CWRealTimeActionLive({
+          el: document.getElementById("video"),
+          pictureBase64DelHeader: true,
+          width: 480,
+          height: 640,
+          isDebug: true,
+          isMirror: true,
+          isRemove: true, // 每次获取照片过后清除缓存的照片
+          openCameraTime: 60 * 1000,
+          onInitSuccess(info) {
+            console.log("onInitSuccess", info);
+            if (info.isSupportRealtimeActionLive) {
+              this.start({
+                onSuccess: () => {
+                  console.log("摄像头开启成功");
+                },
+              });
+            }
+          },
+        });
+      }, 3000);
+      // setTimeout(() => {
+      //   // document.getElementById("video").src = 'https://www.w3schools.com/html/mov_bbb.mp4'
+      //   document.getElementById("video").play()
+      // })
+      // 开启前置摄像头，判断是用户拒绝还是浏览器拒绝
+      const cameraStatus = document.getElementById("cameraStatus");
+      async function openFrontCamera() {
+        try {
+          const constraints = {
+            video: {
+              facingMode: "user", // 'user' 为前置摄像头，'environment' 为后置摄像头
+              // frameRate: 30,
+            },
+          };
+
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          console.log("摄像头已开启");
+          cameraStatus.textContent = "摄像头已开启";
+          const video = document.getElementById("video");
+          console.log("视频流已加载");
+          video.srcObject = stream;
+          // video.play();
+          video.oncanplay = (e) => {
+            console.log("视频流已加载完成");
+            video.play();
+          };
+          video.onloadedmetadata = (e) => {
+            console.log("视频元数据加载完成");
+            video.play();
+          };
+          video.ondurationchange = function () {
+            console.log("ondurationchange");
+            isPlaying || playFn("ondurationchange");
+          };
+
+          video.onloadedmetadata = function () {
+            console.log("onloadedmetadata");
+            isPlaying || playFn("onloadedmetadata");
+          };
+
+          video.oncanplay = function () {
+            console.log("oncanplay");
+            isPlaying || playFn("oncanplay");
+          };
+
+          video.oncanplaythrough = function () {
+            console.log("canplaythrough");
+            isPlaying || playFn("oncanplaythrough");
+          };
+
+          video.onerror = function (e) {
+            console.log("onerror", e);
+            onError(TYPE_STATUS.nativeCameraFail);
+          };
+
+          // video.onplay = function () {
+          //   console.log('playing')
+          //   isPlaying || playFn('playing')
+          // }
+
+          video.ontimeupdate = function () {
+            console.log("ontimeupdate: ", video.currentTime);
+            if (video.currentTime) {
+              if (!isPlaying) {
+                isPlaying = true;
+                _this.cameraStatus = CAMERA_STATUS.OPEN;
+                onSuccess && onSuccess(TYPE_STATUS.videoPlaySuccess);
+                video.ontimeupdate = null;
+                console.warn("video 播放中");
+              }
+            }
+          };
+          // recordVideo(stream);
+          // 可以把 stream 绑定到 <video> 元素上播放
+        } catch (err) {
+          if (err.name === "NotAllowedError") {
+            console.log("用户拒绝了摄像头权限");
+            cameraStatus.textContent = "用户拒绝了摄像头权限";
+          } else if (err.name === "NotFoundError") {
+            console.log("未找到合适的摄像头（可能没有前置摄像头）");
+            cameraStatus.textContent =
+              "未找到合适的摄像头（可能没有前置摄像头）";
+          } else if (err.name === "NotReadableError") {
+            console.log("摄像头被占用或硬件故障");
+            cameraStatus.textContent = "摄像头被占用或硬件故障";
+          } else if (err.name === "SecurityError") {
+            console.log("浏览器策略限制（如非 HTTPS 或 iframe 沙箱）");
+            cameraStatus.textContent =
+              "浏览器策略限制（如非 HTTPS 或 iframe 沙箱）";
+          } else {
+            console.log("其他错误：", err.name, err.message);
+            cameraStatus.textContent = "其他错误：" + err.name + err.message;
+          }
+        }
+      }
+
+      // 录制视频使用 MediaRecorder 和 Blob 对象
+      let mediaRecorder;
+      let chunks = [];
+      async function recordVideo(stream) {
+        console.log("开始录制视频");
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: "video/mp4" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "video.mp4";
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+        mediaRecorder.ondataavailable = (e) => {
+          chunks.push(e.data);
+        };
+      }
+
+      function stopCamera() {
+        const video = document.getElementById("video");
+        video.srcObject.getTracks().forEach((track) => track.stop());
+        video.srcObject = null;
+        video.pause();
+        video.style.display = "none";
+        cameraStatus.textContent = "摄像头已停止";
+        mediaRecorder.stop();
+      }
+
+      eruda.init({
+        tool: ["console", "elements", "network", "resources", "sources"],
+        useShadowDom: true,
+      });
+    </script>
+  </body>
+</html>
